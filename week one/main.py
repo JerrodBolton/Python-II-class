@@ -65,7 +65,3 @@ print("\n")
 # print the final result to the user
 print("The AI has finished processing the image and here is what it sees in the image:")
 print(final_result[task_command])
-
-
-
-
