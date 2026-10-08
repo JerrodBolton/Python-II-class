@@ -1,7 +1,29 @@
 {
   "theme_name": "VORTEXA Cosmic Gateway",
-  "version": "1.0",
+  "version": "1.1",
   "appearance_mode": "dark",
+  "button_color_theme": "blue",
+  "window_size": "1360x880",
+  "window_min_size": [1100, 720],
+
+  "brand": {
+    "name_white": "VORT",
+    "name_orange": "EXA",
+    "tagline": "LOCAL LLM INTERFACE"
+  },
+
+  "font": {
+    "family": "Helvetica Neue",
+    "size": 14,
+    "wordmark_file": "Orbitron-800.ttf"
+  },
+
+  "radius": {
+    "panel": 22,
+    "card": 14,
+    "button": 12
+  },
+
   "colors": {
     "background": "#080D14",
     "sidebar": "#141B23",
@@ -20,11 +42,21 @@
 
     "text": "#F2F6F5",
     "text_muted": "#94A5AD",
-    "text_on_primary": "#080D14",
+    "text_on_primary": "#FFFFFF",
 
     "border": "#34444B",
     "input_background": "#141B23",
     "chat_user": "#263438",
-    "chat_ai": "#141B23"
+    "chat_ai": "#141B23",
+
+    "panel": "#0B1117",
+    "panel_border": "#1C2A31",
+    "card": "#0F171D",
+    "card_border": "#22323A",
+    "nav_text": "#C9D3D6",
+    "nav_icon": "#7F9199",
+    "nav_active": "#4A230D",
+    "user_card": "#1C120C",
+    "ai_card": "#0B1A19"
   }
 }
