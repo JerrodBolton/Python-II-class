@@ -1,0 +1,16 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# LLM model files are too big for GitHub (100 MB limit)
+*.gguf
+
+# Logs
+*.log
+
+# macOS
+.DS_Store

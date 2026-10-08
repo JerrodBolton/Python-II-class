@@ -1,0 +1,3 @@
+RealtimeSTT
+RealtimeTTS[kokoro]
+faster-whisper

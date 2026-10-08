@@ -1,180 +1,169 @@
-import sys
+# --------------------------------------------------
+# IMPORTS
+# --------------------------------------------------
 
-# Import the GUI components we need from PySide6.
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QPushButton,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-    QFileDialog,
-    QMessageBox,
+# sys gives PySide6 access to information about how our Python program was started.
+import sys  # Import the system module so the app can start correctly.
+# this is imaport the image thst is from the GIU
+from main import analyze_image  # Import the image analysis function from the main script.
+
+# Import the GUI components we need.
+from PySide6.QtWidgets import (  # Import widgets needed to build the window and controls.
+    QApplication,  # Create the Qt application object for the GUI.
+    QMainWindow,  # Build the main window container.
+    QPushButton,  # Create the button used to choose an image.
+    QLabel,  # Create labels for text and preview content.
+    QVBoxLayout,  # Arrange widgets vertically in the window.
+    QWidget,  # Create the central widget that holds the layout.
+    QFileDialog,  # Open a file picker dialog for selecting an image.
+    QTextEdit,  # Create the area where analysis results are displayed.
 )
 
-# QPixmap loads images so that we can display them in a label.
-from PySide6.QtGui import QPixmap
-# Qt provides settings for alignment and image scaling.
-from PySide6.QtCore import Qt
+# QPixmap allows us to load an image and display it inside our GUI.
+from PySide6.QtGui import QPixmap  # Import the image class used to preview selected files.
+
+# Qt gives us useful settings such as alignment and image scaling.
+from PySide6.QtCore import Qt  # Import Qt enums for alignment and scaling options.
+
+
+def normalize_file_selection(selection):
+    """Return a plain file path from Qt's tuple-based file selection API."""
+    if selection in (None, ""):
+        return ""
+    if isinstance(selection, (list, tuple)):
+        return selection[0] if selection else ""
+    return str(selection)
 
 
 # --------------------------------------------------
 # 1. CREATE THE APPLICATION
 # --------------------------------------------------
 
-# QApplication controls the entire GUI application.
-# Every PySide6 GUI needs one QApplication.
-app = QApplication(sys.argv)
+def main():
+    """Build and run the GUI application."""
+    # Every PySide6 application needs ONE QApplication.
+    #
+    # Think of QApplication as the thing controlling the entire GUI program.
+    app = QApplication(sys.argv)  # Create the application and pass in command-line arguments.
 
+    # --------------------------------------------------
+    # 2. CREATE THE MAIN WINDOW
+    # --------------------------------------------------
 
-# --------------------------------------------------
-# 2. CREATE THE MAIN WINDOW AND GIVE IT A TITLE
-# --------------------------------------------------
+    # QMainWindow creates the actual window that appears on the user's computer.
+    window = QMainWindow()  # Create the main application window object.
 
-# QMainWindow is the main window the user will see.
-window = QMainWindow()
+    # Text displayed at the top of the window.
+    window.setWindowTitle("Image Reader AI")  # Set the title shown in the window bar.
 
-# Give the window a title.
-window.setWindowTitle("Image Reader AI")
+    # Starting size of our application.
+    #
+    # 1000 = width
+    # 700 = height
+    window.resize(1000, 700)  # Set the initial window size to 1000x700 pixels.
 
-# Set the starting width and height in pixels.
-window.resize(1000, 700)
+    # --------------------------------------------------
+    # 3. CREATE THE CENTRAL WIDGET
+    # --------------------------------------------------
 
+    # QMainWindow needs a central widget.
+    #
+    # This will become the main area where we place everything else.
+    central_widget = QWidget()  # Create the main panel that will hold all UI elements.
 
-# --------------------------------------------------
-# 3. CREATE A CENTRAL WIDGET
-# --------------------------------------------------
+    # Tell our main window that this is its central widget.
+    window.setCentralWidget(central_widget)  # Attach the central widget to the main window.
 
-# QMainWindow needs a central widget before we can
-# easily place other widgets inside of it.
-central_widget = QWidget()
+    # --------------------------------------------------
+    # 4. CREATE THE MAIN VERTICAL LAYOUT
+    # --------------------------------------------------
 
-# Tell the main window to use this widget as its main area.
-window.setCentralWidget(central_widget)
+    # QVBoxLayout stacks things vertically.
+    #
+    # Example:
+    #
+    # Title
+    #   ↓
+    # Instructions
+    #   ↓
+    # Button
+    #   ↓
+    # Main Content
+    #
+    layout = QVBoxLayout()  # Create a vertical layout that stacks widgets from top to bottom.
 
+    # Put our vertical layout inside the central widget.
+    central_widget.setLayout(layout)  # Attach the vertical layout to the central widget.
 
-# --------------------------------------------------
-# 4. CREATE A LAYOUT
-# --------------------------------------------------
+    # --------------------------------------------------
+    # 5. CREATE THE TOP PART OF THE GUI
+    # --------------------------------------------------
 
-# QVBoxLayout means "Vertical Box Layout."
-# Anything we add to this layout will be stacked vertically:
-#
-# Widget 1
-# Widget 2
-# Widget 3
-layout = QVBoxLayout()
+    # Create the title.
+    title = QLabel("Image Reader AI")  # Create the heading label at the top of the window.
 
-# Put the layout inside our central widget.
-central_widget.setLayout(layout)
+    # Create instructions for the user.
+    instructions = QLabel("Hey there, welcome to the Image Reader AI! A AI that will read your images and provide a detailed caption of what the AI is seeing. Please select an image to get started.")  # Display the instruction message.
+    upload_button = QPushButton("Choose Image")  # Create the button the user clicks to choose a file.
 
+    # Create the image preview area.
+    image_preview = QLabel("No image selected")  # Create a placeholder label before an image is chosen.
+    image_preview.setAlignment(Qt.AlignCenter)  # Center the text or image within the preview area.
+    image_preview.setMinimumHeight(400)  # Give the preview area enough space to display the image.
 
-# --------------------------------------------------
-# 5. CREATE OUR FIRST WIDGETS
-# --------------------------------------------------
+    # Create the results area.
+    chat_display = QTextEdit()  # Create a read-only text box for showing analysis results.
+    chat_display.setReadOnly(True)  # Prevent the user from editing the result output.
+    chat_display.setPlaceholderText("Image analysis will appear here.")  # Show placeholder text before analysis is complete.
 
-# QLabel displays text on the screen.
-title = QLabel("Image Reader AI")
+    # Add widgets to the layout.
+    layout.addWidget(title)  # Add the title label to the top of the layout.
+    layout.addWidget(instructions)  # Add the instruction label below the title.
+    layout.addWidget(upload_button)  # Add the upload button.
+    layout.addWidget(image_preview)  # Add the image preview area.
+    layout.addWidget(chat_display)  # Add the text display area at the bottom.
 
-# Another label with instructions for the user.
-# This version previews images; AI analysis can be connected later.
-instructions = QLabel("Choose an image to preview it.")
+    # --------------------------------------------------
+    # Add color to the background of the GUI, so it looks more visually appealing.
+    window.setStyleSheet("background-color: orange;")  # Set the background color of the main window to orange.
+    window.setStyleSheet("QLabel { color: white; font-size: 16px; }")  # Set the text color and font size for all QLabel widgets.
+    window.setStyleSheet("QPushButton { background-color: white; color: black; font-size: 16px; padding: 10px; }")  # Style the button with a white background and black text.
 
-# QPushButton creates a clickable button.
-upload_button = QPushButton("Choose Image")
+    # Create the button the user will click when they want to select an image.
+    def getting_file():  # Define a function that runs when the upload button is clicked.
+        selected_file = QFileDialog.getOpenFileName(  # Open a file dialog and ask the user to pick an image.
+            window,  # Connect the dialog to the main window.
+            "Choose an Image",  # Title shown in the file picker.
+            "",  # Start in the default directory.
+            "Images (*.png *.jpg *.jpeg *.webp)"  # Only allow common image file types.
+        )
+        file_path = normalize_file_selection(selected_file)
 
+        if not file_path:  # Check whether the user canceled the file dialog.
+            return  # Exit the function without doing anything else.
 
-# --------------------------------------------------
-# 6. ADD THE WIDGETS TO THE LAYOUT
-# --------------------------------------------------
+        pixmap = QPixmap(file_path)  # Load the selected file as a Qt pixmap for previewing.
 
-# Remember: this is a vertical layout.
-# They will appear in the order we add them.
-layout.addWidget(title)
-layout.addWidget(instructions)
-layout.addWidget(upload_button)
-
-# QLabel can display more than just text.
-# It can also display an image using QPixmap.
-image_preview = QLabel("The image will show here")
-
-# Center whatever is inside the label.
-image_preview.setAlignment(Qt.AlignCenter)
-
-# Reserve a preview area at least 600 pixels wide and 400 tall.
-image_preview.setMinimumSize(600, 400)
-layout.addWidget(image_preview)
-
-
-# --------------------------------------------------
-# 7. CREATE THE BUTTON ACTION
-# --------------------------------------------------
-
-def getting_file():
-    """Open the image picker when the user clicks Choose Image."""
-    # Open the file browser. getOpenFileName() returns two values:
-    # the selected file's path and the selected file filter.
-    file_path, selected_filter = QFileDialog.getOpenFileName(
-        window,                         # Parent window
-        "Choose an Image",              # File browser title
-        "",                             # Use the default starting folder
-        "Images (*.png *.jpg *.jpeg *.webp)",
-    )
-
-    # Cancel returns an empty path. Leave the existing preview alone.
-    if not file_path:
-        return
-
-    # Check the extension before loading. lower() also accepts .JPG, etc.
-    # Each extension needs its leading dot, including ".jpg".
-    if file_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-        pixmap = QPixmap(file_path)
-
-        # A supported extension does not guarantee a readable image.
-        # If loading fails, explain the problem and keep the old preview.
-        if pixmap.isNull():
-            QMessageBox.warning(window, "Unable to Open Image",
-                                "The selected image could not be loaded.")
-            return
-
-        # Fit the image within 600 x 400 without stretching its proportions.
-        # SmoothTransformation improves the quality of the resized image.
-        scaled_pixmap = pixmap.scaled(
-            600,
-            400,
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation,
+        scaled_pixmap = pixmap.scaled(  # Resize the pixmap to fit the preview area.
+            600,  # Set a width of 600 pixels.
+            400,  # Set a height of 400 pixels.
+            Qt.KeepAspectRatio,  # Preserve the image's original proportions.
+            Qt.SmoothTransformation  # Use smoothing so the scaled image looks cleaner.
         )
 
-        # Keep this inside the image branch: scaled_pixmap exists only
-        # after a supported image has been loaded and scaled successfully.
-        image_preview.setPixmap(scaled_pixmap)
-    else:
-        QMessageBox.warning(window, "Unsupported Image",
-                            "Please choose a PNG, JPG, JPEG, or WEBP image.")
+        image_preview.setPixmap(scaled_pixmap)  # Display the resized image in the preview label.
+
+        chat_display.setText("Analyzing image...")  # Show a loading message while the AI works.
+
+        result = analyze_image(file_path)  # Send the selected image file to the analysis function.
+
+        chat_display.setText(str(result))  # Convert the result to text and show it in the output area.
+
+    upload_button.clicked.connect(getting_file)  # Connect the button click to the file selection function.
+
+    window.show()  # Display the main window to the user.
+    sys.exit(app.exec())  # Start the Qt event loop and exit cleanly when the app closes.
 
 
-# --------------------------------------------------
-# 8. CONNECT THE BUTTON TO THE FUNCTION
-# --------------------------------------------------
-
-# "clicked" is a signal. When the button emits it, Qt calls getting_file.
-# Connect once, outside the function, so clicks do not add more connections.
-upload_button.clicked.connect(getting_file)
-
-# Make the window visible before starting the event loop.
-window.show()
-
-
-# --------------------------------------------------
-# 9. START THE EVENT LOOP
-# --------------------------------------------------
-
-# Keep the application running and listening for:
-# - mouse clicks
-# - keyboard input
-# - button presses
-# - window resizing
-# - closing the window
-# sys.exit() passes the application's exit code back to Python.
-sys.exit(app.exec())
+if __name__ == "__main__":
+    main()
