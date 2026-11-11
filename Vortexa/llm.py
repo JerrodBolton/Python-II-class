@@ -1,20 +1,21 @@
 # This file is the "brain" of VORTEXA. Everything that talks to the LLM lives here.
 # The GUI files never touch llama_cpp directly, they only call the functions below.
-# The logic is the SAME as your original main.py: same model, same template,
-# same sampling settings, same end-of-sequence check, same 300 token limit.
+# Every model in the models folder can be loaded here, one at a time.
 import os
 # THis is the key to everything, the library to access the LLM
 # I cannot overstate the importance of this library, it is the key to everything
 from llama_cpp import Llama
 
-# Very important, we need to set the path to the model file,
-# this is the file that contains the LLM
-# This can be and should be changed often to try out other models.
-# #################### Change your model path here ####################
-model_file = "Dolphin3.0-Llama3.1-8B_Q5_K_M.gguf"
-# We build the full path from where this file lives, so the app finds the model
+# Very important, every model file (.gguf) lives in the models folder.
+# Drop any .gguf file in there (or download one from Hugging Face inside the app)
+# and it shows up in the model dropdown at the top of the window.
+# We build the full path from where this file lives, so the app finds the models
 # even if you start it from a different folder
-model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_file)
+models_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+
+# #################### The model we start with ####################
+# If this file is missing we start with the first model in the models folder instead
+default_model_file = "Dolphin3.0-Llama3.1-8B_Q5_K_M.gguf"
 
 # Same numbers as before, now with names so the GUI can show them in the header
 context_size = 1024      # n_ctx: how many tokens the model can "see" at once
@@ -22,56 +23,68 @@ max_output_tokens = 300  # stop after this many tokens to avoid infinite loops
 
 # The loaded model lives here. None means "not loaded yet".
 model = None
+# The file name of the loaded model, like "Dolphin3.0-Llama3.1-8B_Q5_K_M.gguf"
+model_file = None
+
+
+# Every .gguf file in the models folder, sorted A to Z.
+# Half-finished downloads end in ".gguf.part", so they are left out.
+def list_models():
+    if not os.path.isdir(models_folder):
+        return []
+    return sorted(name for name in os.listdir(models_folder) if name.lower().endswith(".gguf"))
 
 
 # Here is another BIG DEAL.
-# Create a function to load the model, this is where we will load the LLM into memory
-def load_model():
-    # First we will check if the model file exists, if it does not exist we will exit the application
-    if not os.path.exists(model_path):
-        print(f"Model file not found at {model_path}. Please check the path and try again.")
-        # Exit the application with a non-zero exit code to indicate an error that the model
-        # was not found at the specified path
-        exit(1)
+# Create a function to load the model, this is where we will load the LLM into memory.
+# file_name is which model to load. Leave it out to load the starting model.
+def load_model(file_name=None):
+    global model, model_file
+    if file_name is None:
+        available = list_models()
+        # If there are no models at all we exit the application
+        if not available:
+            print(f"No .gguf model files found in {models_folder}. Please add one and try again.")
+            # Exit the application with a non-zero exit code to indicate an error
+            exit(1)
+        file_name = default_model_file if default_model_file in available else available[0]
 
-    # If the model file exists, we will try to load the model into memory.
-    global model
+    # Only one model fits in memory at a time, so free the old one before loading the new one
+    if model is not None:
+        model.close()
+        model = None
+
+    # If the model file is broken, Llama() raises a ValueError. main.py catches it and shows an error.
     model = Llama(
-        model_path=model_path,
+        model_path=os.path.join(models_folder, file_name),
         n_ctx=context_size,  # Context size, you can adjust this based on your model's capabilities
     )
+    model_file = file_name
 
 
-# Another BIG DEAL, This the TEMPLATE that we send to the LLM. This sounds like it does not matter much,
-# but it does, it is very important to have a good prompt template. Each model has a different template.
-def build_prompt(user_prompt_input_text):
-    return f"<|im_start|>user\n{user_prompt_input_text}<|im_end|>\n<|im_start|>assistant\n"
-
-
+# Another BIG DEAL, the TEMPLATE. Each model expects the conversation wrapped in its own special tags.
+# Dolphin uses <|im_start|>user ... <|im_end|>, Llama 3.2 uses <|start_header_id|>user<|end_header_id|>, and so on.
+# Luckily every .gguf file carries its own template inside it, and create_chat_completion() uses it for us.
+# That is what lets us switch models without rewriting this file.
+#
 # Another BIG DEAL, we generate a response from the LLM one token at a time.
 # This is a "generator" function: instead of return, it uses yield.
 # Every time it yields, the GUI gets one small piece of text to show on the screen,
 # then the loop continues. That is how we get the "typing" effect.
 def stream_response(user_prompt_input_text):
-    prompt = build_prompt(user_prompt_input_text)
-    input_tokens = model.tokenize(prompt.encode("utf-8"), special=True)
+    messages = [{"role": "user", "content": user_prompt_input_text}]
 
-    # Now lets print out to the console for debugging the input text and tokens we are sending to our LLM
-    print(f"Input tokens: ", input_tokens)
+    # Now lets print out to the console for debugging the text we are sending to our LLM
+    print(f"Prompt to {model_file}: ", messages)
 
-    # Let's put the I am done with my response part of the template here
-    eos = model.token_eos()
-    count = 0
-    # BIG DEAL, we will use the model to generate a response to the input text
-    for token in model.generate(input_tokens, top_k=40, top_p=0.95, repeat_penalty=1.1):
-        # Let's stop our model from generating a response if it generates the end of sequence token, this is a BIG DEAL
-        if token == eos:
-            break  # Stop ths show
-        # Now we will decode the token to text and hand it to the GUI
-        yield model.detokenize([token]).decode("utf-8", errors="replace")
-        count += 1
-        if count > max_output_tokens:  # Limit the number of tokens to avoid infinite loops
-            break
+    # stream=True hands us the answer in small pieces. The model stops by itself when it
+    # reaches its own end-of-answer token, or when it hits max_tokens.
+    for chunk in model.create_chat_completion(messages, stream=True, max_tokens=max_output_tokens,
+                                              top_k=40, top_p=0.95, repeat_penalty=1.1):
+        # The first and last pieces carry no text, only bookkeeping, so we skip those
+        text = chunk["choices"][0]["delta"].get("content")
+        if text:
+            yield text
 
 
 # Count how many tokens some text uses, for the "0 / 1,024 tokens" counter under the input box
@@ -95,6 +108,7 @@ def model_info():
     metadata = model.metadata if model is not None else {}
     file_type = int(metadata.get("general.file_type", -1))
     return {
+        "file": model_file,
         "name": metadata.get("general.name", model_file),
         "parameters": metadata.get("general.size_label", "?"),
         "quantization": quantization_names.get(file_type, "Unknown"),

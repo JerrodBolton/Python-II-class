@@ -8,6 +8,7 @@ __pycache__/
 
 # LLM model files are too big for GitHub (100 MB limit)
 *.gguf
+*.gguf.part
 
 # Logs
 *.log
