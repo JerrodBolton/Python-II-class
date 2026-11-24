@@ -188,7 +188,7 @@ class VortexaApp(ctk.CTk):
 
         if kind == "no_models":
             self.on_close()
-            return
+            returnx
         if kind == "error":
             print(f"Could not load {file_name}: {text}")
             self.header.set_status("error")
